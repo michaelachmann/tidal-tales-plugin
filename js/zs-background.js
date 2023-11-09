@@ -10,6 +10,9 @@ window.zeeschuimer = {
     modules: {},
     session: null,
     tab_url_map: {},
+    firebase_url: null,
+    firebase_key: null,
+    firebase_project: null,
 
     /**
      * Register Zeeschuimer module
@@ -40,6 +43,15 @@ window.zeeschuimer = {
         this.session = session["value"];
         await db.settings.update("session", session);
         await db.nav.where("session").notEqual(this.session).delete();
+
+        const firebase_url = await browser.storage.local.get('firebase-url');
+        this.firebase_url = firebase_url
+
+        const firebase_key = await browser.storage.local.get('firebase-key');
+        this.firebase_key = firebase_key
+
+        const firebase_project = await browser.storage.local.get('firebase-project');
+        this.firebase_project = firebase_project
     },
 
     /**
@@ -146,7 +158,9 @@ window.zeeschuimer = {
                             "user_agent": navigator.userAgent,
                             "data": item
                         });
+                        
                     }
+
                 }));
 
                 return;
