@@ -1,14 +1,17 @@
 zeeschuimer.register_module(
     'IG Stories',
     'instagram.com',
-    function (response, source_platform_url, source_url) {
+    async function (response, source_platform_url, source_url) {
         let domain = source_platform_url.split("/")[2].toLowerCase().replace(/^www\./, '');
         let endpoint = source_url.split("/").slice(3).join("/").split("?")[0].split("#")[0].replace(/\/$/, '');
 
-        const firebase_url = zeeschuimer.firebase_url['firebase-url']
-        const firebase_key = zeeschuimer.firebase_key['firebase-key']
-        const firebase_project = zeeschuimer.firebase_project['firebase-project']
-        console.log(firebase_url)
+        // Dynamically fetch the Firebase configuration values
+        const firebaseConfig = await browser.storage.local.get(['firebase-url', 'firebase-key', 'firebase-project']);
+        const firebase_url = firebaseConfig['firebase-url'];
+        const firebase_key = firebaseConfig['firebase-key'];
+        const firebase_project = firebaseConfig['firebase-project'];
+
+        console.log(firebase_url);
 
         if (!["instagram.com"].includes(domain)) {
             return [];
@@ -81,25 +84,22 @@ zeeschuimer.register_module(
         
         let edges = [];
 
-        const sendItemsToAPI = function(dataToSend) {
-            // Upload the data to the API via POST
-            fetch(`${firebase_url}/add?project=${firebase_project}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-api-key': firebase_key },
-                body: JSON.stringify(dataToSend),
-            })
-                .then(response => {
+        const sendItemsToAPI = async function(dataToSend) { // Make sendItemsToAPI async
+            try {
+                const response = await fetch(`${firebase_url}/add?project=${firebase_project}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-api-key': firebase_key },
+                    body: JSON.stringify(dataToSend),
+                });
                 if (response.ok) {
-                    console.log(response)
                     console.log('Data uploaded successfully');
                 } else {
                     console.error('Failed to upload data:', response.statusText);
                 }
-                })
-                .catch(error => {
+            } catch (error) {
                 console.error('Error uploading data:', error.message);
-                });
-            };
+            }
+        };
     
 
         const traverse = function (obj) {
@@ -132,8 +132,7 @@ zeeschuimer.register_module(
           
         traverse(data);
     
-        // Upload data to firebase
-        sendItemsToAPI(edges);
+        sendItemsToAPI(edges); 
         return edges;
     }
 );
