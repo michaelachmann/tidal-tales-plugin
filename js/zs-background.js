@@ -10,9 +10,6 @@ window.zeeschuimer = {
     modules: {},
     session: null,
     tab_url_map: {},
-    firebase_url: null,
-    firebase_key: null,
-    firebase_project: null,
 
     /**
      * Register Zeeschuimer module
@@ -128,16 +125,15 @@ window.zeeschuimer = {
 
         let item_list = [];
         for (let module in this.modules) {
-            item_list = this.modules[module].callback(response, source_platform_url, source_url);
+            item_list = await this.modules[module].callback(response, source_platform_url, source_url);
             console.log("zs-background")
-            console.log(item_list)
             if (item_list && item_list.length > 0) {
                 await Promise.all(item_list.map(async (item) => {
+                    console.log(item_list)
+                    console.log(item)
                     if (!item) {
                         return;
                     }
-
-                    console.log(item)
 
                     let item_id = item["id"];
                     let exists = await db.items.where({"item_id": item_id, "nav_index": nav_index}).first();

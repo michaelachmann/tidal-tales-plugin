@@ -114,17 +114,17 @@ zeeschuimer.register_module(
         
                         // Check for the presence of reels_media
                         if (connectionObj.reels_media && Array.isArray(connectionObj.reels_media)) {
-                            // New structure handling
+                            // Handling Profiles / Search
                             for (const reelMedia of connectionObj.reels_media) {
                                 if (reelMedia.items && Array.isArray(reelMedia.items)) {
-                                    processReelsMedia(reelMedia);
+                                    await processReelsMedia(reelMedia);
                                 }
                             }
                         } else if (connectionObj.edges && Array.isArray(connectionObj.edges)) {
-                            // Old structure handling
+                            // Handling Timeline
                             for (const edgeNode of connectionObj.edges) {
                                 if (edgeNode.node && edgeNode.node.items && Array.isArray(edgeNode.node.items)) {
-                                    processReelsMedia(edgeNode.node);
+                                    await processReelsMedia(edgeNode.node);
                                 }
                             }
                         }
@@ -147,8 +147,8 @@ zeeschuimer.register_module(
                             ...user,
                         },
                     };
+
                     edges.push(edge);
-                    console.log(edge);
         
                     const baseFilename = `tidaltales/${user.username}/${item.pk}`;
                     const jsonFilename = `${baseFilename}.json`;
@@ -169,7 +169,7 @@ zeeschuimer.register_module(
                         downloadTasks.push(() => saveVideoLocally(videoUrl, videoFilename));
                     }
         
-                    await batchDownload(downloadTasks);
+                    batchDownload(downloadTasks);
                 }
             }
         };
@@ -182,9 +182,12 @@ zeeschuimer.register_module(
             } else {
                 console.log('No edges to save.');
             }
+            console.log(`Processed ${edges.length} edges.`)
             return edges;
         };
 
-        return await processAndSaveEdges(data);
+        const finalResult = await processAndSaveEdges(data);
+        return finalResult;
+        
     }
 );
