@@ -48,7 +48,7 @@ zeeschuimer.register_module(
             }
         }
 
-        let possible_edges = ["xdt_api__v1__feed__reels_media__connection"];
+        let possible_edges = ["xdt_api__v1__feed__reels_media__connection", "xdt_api__v1__feed__reels_media"];
         let edges = [];
 
         const saveItemsLocally = async function (dataToSave, filename) {
@@ -109,47 +109,22 @@ zeeschuimer.register_module(
                 if (obj.hasOwnProperty(property)) {
                     if (possible_edges.includes(property)) {
                         console.log("Traversing:", property);
-
+        
                         const connectionObj = obj[property];
-                        if (connectionObj && connectionObj.edges && Array.isArray(connectionObj.edges)) {
+        
+                        // Check for the presence of reels_media
+                        if (connectionObj.reels_media && Array.isArray(connectionObj.reels_media)) {
+                            // New structure handling
+                            for (const reelMedia of connectionObj.reels_media) {
+                                if (reelMedia.items && Array.isArray(reelMedia.items)) {
+                                    processReelsMedia(reelMedia);
+                                }
+                            }
+                        } else if (connectionObj.edges && Array.isArray(connectionObj.edges)) {
+                            // Old structure handling
                             for (const edgeNode of connectionObj.edges) {
                                 if (edgeNode.node && edgeNode.node.items && Array.isArray(edgeNode.node.items)) {
-                                    for (const item of edgeNode.node.items) {
-                                        const user = edgeNode.node.user;
-                                        const reelItems = item;
-
-                                        if (reelItems) {
-                                            const edge = {
-                                                ...reelItems,
-                                                user: {
-                                                    ...user,
-                                                },
-                                            };
-                                            edges.push(edge);
-                                            console.log(edge);
-
-                                            const baseFilename = `instagram_data/${user.username}/${item.pk}`;
-                                            const jsonFilename = `${baseFilename}.json`;
-
-                                            const downloadTasks = [
-                                                () => saveItemsLocally(edge, jsonFilename)
-                                            ];
-
-                                            if (item.image_versions2 && item.image_versions2.candidates && item.image_versions2.candidates.length > 0) {
-                                                const imageUrl = item.image_versions2.candidates[0].url;
-                                                const imageFilename = `${baseFilename}.jpg`;
-                                                downloadTasks.push(() => saveImageLocally(imageUrl, imageFilename));
-                                            }
-
-                                            if (item.video_versions && item.video_versions.length > 0) {
-                                                const videoUrl = item.video_versions[0].url;
-                                                const videoFilename = `${baseFilename}.mp4`;
-                                                downloadTasks.push(() => saveVideoLocally(videoUrl, videoFilename));
-                                            }
-
-                                            await batchDownload(downloadTasks);
-                                        }
-                                    }
+                                    processReelsMedia(edgeNode.node);
                                 }
                             }
                         }
@@ -159,6 +134,46 @@ zeeschuimer.register_module(
                 }
             }
         };
+        
+        const processReelsMedia = async function (reelsMediaNode) {
+            const user = reelsMediaNode.user;
+            const reelItems = reelsMediaNode.items;
+        
+            if (reelItems) {
+                for (const item of reelItems) {
+                    const edge = {
+                        ...item,
+                        user: {
+                            ...user,
+                        },
+                    };
+                    edges.push(edge);
+                    console.log(edge);
+        
+                    const baseFilename = `tidaltales/${user.username}/${item.pk}`;
+                    const jsonFilename = `${baseFilename}.json`;
+        
+                    const downloadTasks = [
+                        () => saveItemsLocally(edge, jsonFilename)
+                    ];
+        
+                    if (item.image_versions2 && item.image_versions2.candidates && item.image_versions2.candidates.length > 0) {
+                        const imageUrl = item.image_versions2.candidates[0].url;
+                        const imageFilename = `${baseFilename}.jpg`;
+                        downloadTasks.push(() => saveImageLocally(imageUrl, imageFilename));
+                    }
+        
+                    if (item.video_versions && item.video_versions.length > 0) {
+                        const videoUrl = item.video_versions[0].url;
+                        const videoFilename = `${baseFilename}.mp4`;
+                        downloadTasks.push(() => saveVideoLocally(videoUrl, videoFilename));
+                    }
+        
+                    await batchDownload(downloadTasks);
+                }
+            }
+        };
+        
 
         const processAndSaveEdges = async function (jsonData) {
             await traverse(jsonData.data);

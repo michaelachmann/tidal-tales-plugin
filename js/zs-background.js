@@ -43,15 +43,6 @@ window.zeeschuimer = {
         this.session = session["value"];
         await db.settings.update("session", session);
         await db.nav.where("session").notEqual(this.session).delete();
-
-        const firebase_url = await browser.storage.local.get('firebase-url');
-        this.firebase_url = firebase_url
-
-        const firebase_key = await browser.storage.local.get('firebase-key');
-        this.firebase_key = firebase_key
-
-        const firebase_project = await browser.storage.local.get('firebase-project');
-        this.firebase_project = firebase_project
     },
 
     /**
@@ -138,11 +129,15 @@ window.zeeschuimer = {
         let item_list = [];
         for (let module in this.modules) {
             item_list = this.modules[module].callback(response, source_platform_url, source_url);
+            console.log("zs-background")
+            console.log(item_list)
             if (item_list && item_list.length > 0) {
                 await Promise.all(item_list.map(async (item) => {
                     if (!item) {
                         return;
                     }
+
+                    console.log(item)
 
                     let item_id = item["id"];
                     let exists = await db.items.where({"item_id": item_id, "nav_index": nav_index}).first();
