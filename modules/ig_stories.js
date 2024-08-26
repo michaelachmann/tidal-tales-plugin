@@ -5,134 +5,171 @@ zeeschuimer.register_module(
         let domain = source_platform_url.split("/")[2].toLowerCase().replace(/^www\./, '');
         let endpoint = source_url.split("/").slice(3).join("/").split("?")[0].split("#")[0].replace(/\/$/, '');
 
-        // Dynamically fetch the Firebase configuration values
-        const firebaseConfig = await browser.storage.local.get(['firebase-url', 'firebase-key', 'firebase-project']);
-        const firebase_url = firebaseConfig['firebase-url'];
-        const firebase_key = firebaseConfig['firebase-key'];
-        const firebase_project = firebaseConfig['firebase-project'];
-
-        console.log(firebase_url);
-
         if (!["instagram.com"].includes(domain)) {
             return [];
         }
 
         let whitelisted_endpoints = [
-            "api/v1/feed/reels_media", // live-loading stories
-            "api/v1/feed/reels_tray", // stories tray
-        ]
+            "graphql/query",
+        ];
 
-
-        if(!whitelisted_endpoints.includes(endpoint)) {
+        if (!whitelisted_endpoints.includes(endpoint)) {
             return [];
         }
 
-        console.log("Triggered")
-
-        // determine what part of instagram we're working in
-        let path = source_platform_url.split("/");
-        let view = "";
-        if(path.length === 3) {
-            view = "frontpage";
-        } else if(["direct", "account", "directory", "lite", "legal"].includes(path[3])) {
-            // not post listings
-            return [];
-        } else if(path[3] === "explore") {
-            // hashtag, location view
-            view = "search";
-        } else {
-            view = "user";
-        }
-
+        console.log("Triggered");
 
         let data;
         try {
             // if it's JSON already, just parse it
             data = JSON.parse(response);
         } catch (SyntaxError) {
-            // data can be embedded in the HTML in either of these two JavaScript statements
-            // if the second is present, it overrides the first
             let js_prefixes = ["window._sharedData = {", "window.__additionalDataLoaded('feed',{", "window.__additionalDataLoaded('feed_v2',{"];
-            let prefix;
 
-            while(js_prefixes.length > 0) {
-                prefix = js_prefixes.shift();
+            while (js_prefixes.length > 0) {
+                let prefix = js_prefixes.shift();
                 if (response.indexOf(prefix) === -1) {
-                    continue
+                    continue;
                 }
 
                 let json_bit = response.split(prefix.slice(0, -1))[1].split(';</script>')[0];
-                if(prefix.indexOf("additionalDataLoaded") !== -1) {
-                    // remove trailing )
+                if (prefix.indexOf("additionalDataLoaded") !== -1) {
                     json_bit = json_bit.slice(0, -1);
                 }
                 try {
                     data = JSON.parse(json_bit);
                 } catch (SyntaxError) {
+                    console.error('Failed to parse JSON after finding prefix', prefix);
                 }
-
-                // we go through all prefixes even if we already found one,
-                // because one overrides the other
             }
 
-            if(!data) {
+            if (!data) {
                 return [];
             }
         }
 
-        let possible_edges = ["reels_media", "tray"];
-        
+        let possible_edges = ["xdt_api__v1__feed__reels_media__connection"];
         let edges = [];
 
-        const sendItemsToAPI = async function(dataToSend) { // Make sendItemsToAPI async
+        const saveItemsLocally = async function (dataToSave, filename) {
             try {
-                const response = await fetch(`${firebase_url}/add?project=${firebase_project}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-api-key': firebase_key },
-                    body: JSON.stringify(dataToSend),
+                const dataStr = JSON.stringify(dataToSave, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const downloadId = await browser.downloads.download({
+                    url: url,
+                    filename: filename,
+                    conflictAction: 'overwrite'
                 });
-                if (response.ok) {
-                    console.log('Data uploaded successfully');
-                } else {
-                    console.error('Failed to upload data:', response.statusText);
-                }
+
+                console.log('Download started with ID:', downloadId);
             } catch (error) {
-                console.error('Error uploading data:', error.message);
+                console.error('Error saving data locally:', error.message, error.stack);
             }
         };
-    
 
-        const traverse = function (obj) {
-            for (const property in obj) {
-              if (obj.hasOwnProperty(property) && possible_edges.includes(property)) {
-                console.log("Traversing:", property);
-          
-                // Check if the property is an array before using forEach
-                if (Array.isArray(obj[property])) {
-                  obj[property].forEach(function (item) {
-                    const user = item.user;
-                    const reelItems = item.items;
-
-                    if (reelItems && reelItems.length > 0) {
-                        reelItems.forEach(function (reel) {
-                            const edge = {
-                                ...reel, // Spread operator to include all properties from the 'reel' object
-                                user: {
-                                    ...user,
-                                },
-                            };
-                            edges.push(edge);
-                        });
-                    }
+        const saveImageLocally = async function (imageUrl, filename) {
+            try {
+                const downloadId = await browser.downloads.download({
+                    url: imageUrl,
+                    filename: filename,
+                    conflictAction: 'overwrite'
                 });
-                }
-              }
+
+                console.log('Image download started with ID:', downloadId);
+            } catch (error) {
+                console.error('Error saving image locally:', error.message, error.stack);
             }
-          };
-          
-        traverse(data);
-    
-        sendItemsToAPI(edges); 
-        return edges;
+        };
+
+        const saveVideoLocally = async function (videoUrl, filename) {
+            try {
+                const downloadId = await browser.downloads.download({
+                    url: videoUrl,
+                    filename: filename,
+                    conflictAction: 'overwrite'
+                });
+
+                console.log('Video download started with ID:', downloadId);
+            } catch (error) {
+                console.error('Error saving video locally:', error.message, error.stack);
+            }
+        };
+
+        const batchDownload = async (downloadTasks, batchSize = 5) => {
+            for (let i = 0; i < downloadTasks.length; i += batchSize) {
+                const batch = downloadTasks.slice(i, i + batchSize);
+                await Promise.all(batch.map(task => task()));
+            }
+        };
+
+        const traverse = async function (obj) {
+            for (const property in obj) {
+                if (obj.hasOwnProperty(property)) {
+                    if (possible_edges.includes(property)) {
+                        console.log("Traversing:", property);
+
+                        const connectionObj = obj[property];
+                        if (connectionObj && connectionObj.edges && Array.isArray(connectionObj.edges)) {
+                            for (const edgeNode of connectionObj.edges) {
+                                if (edgeNode.node && edgeNode.node.items && Array.isArray(edgeNode.node.items)) {
+                                    for (const item of edgeNode.node.items) {
+                                        const user = edgeNode.node.user;
+                                        const reelItems = item;
+
+                                        if (reelItems) {
+                                            const edge = {
+                                                ...reelItems,
+                                                user: {
+                                                    ...user,
+                                                },
+                                            };
+                                            edges.push(edge);
+                                            console.log(edge);
+
+                                            const baseFilename = `instagram_data/${user.username}/${item.pk}`;
+                                            const jsonFilename = `${baseFilename}.json`;
+
+                                            const downloadTasks = [
+                                                () => saveItemsLocally(edge, jsonFilename)
+                                            ];
+
+                                            if (item.image_versions2 && item.image_versions2.candidates && item.image_versions2.candidates.length > 0) {
+                                                const imageUrl = item.image_versions2.candidates[0].url;
+                                                const imageFilename = `${baseFilename}.jpg`;
+                                                downloadTasks.push(() => saveImageLocally(imageUrl, imageFilename));
+                                            }
+
+                                            if (item.video_versions && item.video_versions.length > 0) {
+                                                const videoUrl = item.video_versions[0].url;
+                                                const videoFilename = `${baseFilename}.mp4`;
+                                                downloadTasks.push(() => saveVideoLocally(videoUrl, videoFilename));
+                                            }
+
+                                            await batchDownload(downloadTasks);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if (typeof obj[property] === 'object' && obj[property] !== null) {
+                        await traverse(obj[property]);
+                    }
+                }
+            }
+        };
+
+        const processAndSaveEdges = async function (jsonData) {
+            await traverse(jsonData.data);
+            if (edges.length > 0) {
+                console.log('Data processing and saving completed.');
+            } else {
+                console.log('No edges to save.');
+            }
+            return edges;
+        };
+
+        return await processAndSaveEdges(data);
     }
 );
