@@ -63,6 +63,7 @@ window.zeeschuimer = {
         filter.onstop = async (event) => {
             let base_url = source_platform_url ? source_platform_url : source_url;
             let source_platform = base_url.split('://').pop().split('/')[0].replace(/^www\./, '').toLowerCase();
+            
             let enabled_key = 'zs-enabled-' + source_platform;
             let is_enabled = await browser.storage.local.get(enabled_key);
             let enabled = is_enabled.hasOwnProperty(enabled_key) && !!parseInt(is_enabled[enabled_key]);
@@ -159,18 +160,6 @@ window.zeeschuimer = {
         }
     },
 
-    /**
-     * Check if extension tab is open or not
-     * @returns {Promise<boolean>}
-     */
-    has_tab: async function () {
-        const tabs = await browser.tabs.query({});
-        const full_url = browser.runtime.getURL('popup/interface.html');
-        const zeeschuimer_tab = tabs.filter((tab) => {
-            return (tab.url === full_url);
-        });
-        return zeeschuimer_tab[0] || false;
-    },
 
     /**
      * Callback for browser navigation
@@ -201,12 +190,3 @@ browser.webRequest.onBeforeRequest.addListener(
 browser.webNavigation.onCommitted.addListener(
     zeeschuimer.nav_handler
 );
-
-browser.browserAction.onClicked.addListener(async () => {
-    let tab = await zeeschuimer.has_tab();
-    if (!tab) {
-        browser.tabs.create({url: 'popup/interface.html'});
-    } else if (!tab.active) {
-        browser.tabs.update(tab.id, {active: true});
-    }
-});

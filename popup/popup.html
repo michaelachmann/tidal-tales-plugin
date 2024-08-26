@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tidal Tales Extension</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 10px;
+            width: 350px;
+            height: 450px;
+            overflow-y: auto;
+            background-color: #f0f0f0;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #logo {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+        }
+
+        #version {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        h1 {
+            font-size: 1.5em;
+            margin: 0.5em 0;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            margin: 15px 0;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #007ACC;
+            color: white;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #status {
+            margin-bottom: 10px;
+            color: #007ACC;
+        }
+
+        .footer {
+            margin-top: auto;
+            padding-top: 10px;
+        }
+
+        .footer nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .footer nav ul li {
+            margin: 5px 0;
+        }
+
+        .footer nav ul li a {
+            text-decoration: none;
+            color: #007ACC;
+            font-size: 0.9em;
+        }
+
+        .footer nav ul li a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <img id="logo" src="../images/logo-blue.png" alt="Tidal Tales Logo">
+    <h1>Tidal Tales</h1>
+    <div id="version">Version: </div>
+    <div id="status">Loading data...</div>
+    <table id="item-table">
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th>Items</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <button id="clear-data">Delete all items</button>
+
+    <footer class="footer">
+        <nav>
+            <ul>
+                <li><a href="https://tidaltal.es" target="_blank">Tidal Tales Website</a></li>
+                <li><a href="https://www.github.com/digitalmethodsinitiative/zeeschuimer" target="_blank">Based on DMI's Zeeschuimer</a></li>
+            </ul>
+        </nav>
+    </footer>
+
+    <script src="popup.js"></script>
+</body>
+</html>

@@ -12,9 +12,9 @@
   },
 
   "browser_action": {
-    "default_icon": "images/logo-blue-64.ico",
-    "default_title": "Zeeschuimer-F Status"
-  },
+    "default_popup": "popup/popup.html",
+    "default_icon": "images/logo-blue-64.ico"
+},
 
   "permissions": [
     "webRequest", "webRequestBlocking", "webNavigation", "<all_urls>", "storage", "downloads", "activeTab", "tabs",
@@ -22,6 +22,12 @@
   ],
 
   "incognito": "not_allowed",
+
+  "web_accessible_resources": [
+    "popup/popup.html",
+    "popup/popup.js",
+    "images/logo-blue.png"
+  ],
 
   "background": {
     "scripts": [
