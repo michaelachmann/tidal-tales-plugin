@@ -64,12 +64,8 @@ window.zeeschuimer = {
             let base_url = source_platform_url ? source_platform_url : source_url;
             let source_platform = base_url.split('://').pop().split('/')[0].replace(/^www\./, '').toLowerCase();
             
-            let enabled_key = 'zs-enabled-' + source_platform;
-            let is_enabled = await browser.storage.local.get(enabled_key);
-            let enabled = is_enabled.hasOwnProperty(enabled_key) && !!parseInt(is_enabled[enabled_key]);
-            if (enabled) {
-                zeeschuimer.parse_request(full_response, source_platform_url, source_url, details.tabId);
-            }
+            zeeschuimer.parse_request(full_response, source_platform_url, source_url, details.tabId);
+
             filter.disconnect();
             full_response = '';
         }
@@ -127,11 +123,8 @@ window.zeeschuimer = {
         let item_list = [];
         for (let module in this.modules) {
             item_list = await this.modules[module].callback(response, source_platform_url, source_url);
-            console.log("zs-background")
             if (item_list && item_list.length > 0) {
                 await Promise.all(item_list.map(async (item) => {
-                    console.log(item_list)
-                    console.log(item)
                     if (!item) {
                         return;
                     }
