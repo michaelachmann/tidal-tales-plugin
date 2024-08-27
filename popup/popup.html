@@ -55,6 +55,14 @@
             color: white;
         }
 
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-left: 15px;
+            margin-right: 15px;
+            margin-top: 10px;
+        }
+
         button {
             padding: 10px;
             background-color: #d9534f; /* Shade of red */
@@ -62,12 +70,35 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
         }
 
         button:hover {
             background-color: #c9302c; /* Darker shade of red */
+        }
+
+        #clear-data {
+            background-color: #d9534f; /* Shade of teal */
+            width: 40px; /* Small width to match the icon size */
+            padding: 8px; /* Smaller padding */
+        }
+
+        #clear-data:hover {
+            background-color: #31b0d5; /* Darker teal */
+        }
+
+        #clear-data::before {
+            content: "🗑️ "; /* Unicode for trash bin icon */
+            font-size: 1.2em;
+        }
+
+        #export-csv {
+            background-color: #007ACC; /* Primary blue color */
+            flex-grow: 1; /* Take up the remaining space */
+            margin-right: 5px; /* Add some space between the buttons */
+        }
+
+        #export-csv:hover {
+            background-color: #005b9c; /* Darker shade of blue */
         }
 
         #status {
@@ -123,10 +154,12 @@
         </thead>
         <tbody></tbody>
     </table>
-    <p class="silent">Stories and their metadata are saved in your downloads folder. See <a href="https://tidaltal.es" target="_blank">documentation</a> for further information.</p>
 
-    <button id="clear-data">Reset DB</button>
-    <p class="silent">Resetting the DB keeps the files in your download folder.</p>
+    <div class="buttons">
+        <button id="export-csv">Export as CSV</button>
+        <button id="clear-data" title="Reset DB"></button>
+    </div>
+    <p class="silent">All media files are saved to your download folder. See <a href="https://tidaltal.es" target="_blank">documentation</a> for further information. Resetting the DB keeps the media files.</p>
 
     <footer class="footer">
         <nav>
@@ -137,6 +170,17 @@
         </nav>
     </footer>
 
+    <script>
+        document.getElementById('clear-data').addEventListener('click', async () => {
+            if (confirm("Are you sure you want to reset the database? This action cannot be undone.")) {
+                const background = browser.extension.getBackgroundPage();
+                await background.db.items.clear();
+                updateStats(); // Update the stats after clearing data
+            }
+        });
+
+        document.getElementById('export-csv').addEventListener('click', exportDatabaseToCSV);
+    </script>
     <script src="popup.js"></script>
 </body>
 </html>

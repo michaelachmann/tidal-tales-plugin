@@ -50,9 +50,18 @@ zeeschuimer.register_module(
 
         let possible_edges = ["xdt_api__v1__feed__reels_media__connection", "xdt_api__v1__feed__reels_media"];
         let edges = [];
-
+        
+        // Function to save JSON data locally
         const saveItemsLocally = async function (dataToSave, filename) {
             try {
+                // Check if file already exists in download history
+                const existingDownloads = await browser.downloads.search({ filename: filename, state: 'complete' });
+                
+                if (existingDownloads.length > 0) {
+                    console.log(`File "${filename}" already exists. Skipping download.`);
+                    return; // Skip download
+                }
+
                 const dataStr = JSON.stringify(dataToSave, null, 2);
                 const blob = new Blob([dataStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -63,39 +72,58 @@ zeeschuimer.register_module(
                     conflictAction: 'overwrite'
                 });
 
-                console.log('Download started with ID:', downloadId);
+                console.log(`Download started for "${filename}" with ID: ${downloadId}`);
             } catch (error) {
-                console.error('Error saving data locally:', error.message, error.stack);
+                console.error(`Error saving data locally for "${filename}":`, error);
             }
         };
 
+        // Function to save images locally
         const saveImageLocally = async function (imageUrl, filename) {
             try {
+                // Check if file already exists in download history
+                const existingDownloads = await browser.downloads.search({ filename: filename, state: 'complete' });
+                
+                if (existingDownloads.length > 0) {
+                    console.log(`Image file "${filename}" already exists. Skipping download.`);
+                    return; // Skip download
+                }
+
                 const downloadId = await browser.downloads.download({
                     url: imageUrl,
                     filename: filename,
                     conflictAction: 'overwrite'
                 });
 
-                console.log('Image download started with ID:', downloadId);
+                console.log(`Image download started for "${filename}" with ID: ${downloadId}`);
             } catch (error) {
-                console.error('Error saving image locally:', error.message, error.stack);
+                console.error(`Error saving image locally for "${filename}":`, error);
             }
         };
 
+        // Function to save videos locally
         const saveVideoLocally = async function (videoUrl, filename) {
             try {
+                // Check if file already exists in download history
+                const existingDownloads = await browser.downloads.search({ filename: filename, state: 'complete' });
+                
+                if (existingDownloads.length > 0) {
+                    console.log(`Video file "${filename}" already exists. Skipping download.`);
+                    return; // Skip download
+                }
+
                 const downloadId = await browser.downloads.download({
                     url: videoUrl,
                     filename: filename,
                     conflictAction: 'overwrite'
                 });
 
-                console.log('Video download started with ID:', downloadId);
+                console.log(`Video download started for "${filename}" with ID: ${downloadId}`);
             } catch (error) {
-                console.error('Error saving video locally:', error.message, error.stack);
+                console.error(`Error saving video locally for "${filename}":`, error);
             }
         };
+
 
         const batchDownload = async (downloadTasks, batchSize = 5) => {
             for (let i = 0; i < downloadTasks.length; i += batchSize) {

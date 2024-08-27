@@ -1,6 +1,6 @@
 {
 
-  "description": "Collect data while browsing social media platforms and instantly upload it for analysis",
+  "description": "Collect Instagram stories while browsing and instantly save all data to your disk",
   "manifest_version": 2,
   "name": "Tidal Tales Plugin",
   "version": "1.8.6",
