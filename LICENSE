@@ -10,6 +10,15 @@ Principal contributors:
     Stijn Peeters
 
 
+Modifications and New Contributions:
+    Tidal Tales Plugin
+    Copyright (c) Michael Achmann-Denkler <michael.achmann@informatik.uni-regensburg.de>
+
+    The Tidal Tales Plugin is a fork of the original Zeeschuimer Plugin. Tidal Tales 
+    removed the 4CAT connection and added the local download of media files. 
+
+
+
 Mozilla Public License Version 2.0
 ==================================
 
