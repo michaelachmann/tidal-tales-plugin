@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tidal Tales Extension</title>
+    <title>Tidal Tales Plugin</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -57,7 +57,7 @@
 
         button {
             padding: 10px;
-            background-color: #4CAF50;
+            background-color: #d9534f; /* Shade of red */
             color: white;
             border: none;
             border-radius: 4px;
@@ -67,12 +67,17 @@
         }
 
         button:hover {
-            background-color: #45a049;
+            background-color: #c9302c; /* Darker shade of red */
         }
 
         #status {
             margin-bottom: 10px;
             color: #007ACC;
+        }
+
+        .silent {
+            font-size: 0.8em; /* Smaller font size */
+            color: #888; /* Shade of gray */
         }
 
         .footer {
@@ -85,12 +90,12 @@
             padding: 0;
             margin: 0;
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            flex-direction: row; /* Changed to row for better placement */
+            justify-content: center; /* Center the links */
         }
 
         .footer nav ul li {
-            margin: 5px 0;
+            margin: 0 10px; /* Added margin for spacing */
         }
 
         .footer nav ul li a {
@@ -106,25 +111,28 @@
 </head>
 <body>
     <img id="logo" src="../images/logo-blue.png" alt="Tidal Tales Logo">
-    <h1>Tidal Tales</h1>
+    <h1>Tidal Tales Plugin</h1>
     <div id="version">Version: </div>
     <div id="status">Loading data...</div>
     <table id="item-table">
         <thead>
             <tr>
-                <th>Platform</th>
-                <th>Items</th>
+                <th>Post Type</th>
+                <th>#</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
-    <button id="clear-data">Delete all items</button>
+    <p class="silent">Stories and their metadata are saved in your downloads folder. See <a href="https://tidaltal.es" target="_blank">documentation</a> for further information.</p>
+
+    <button id="clear-data">Reset DB</button>
+    <p class="silent">Resetting the DB keeps the files in your download folder.</p>
 
     <footer class="footer">
         <nav>
             <ul>
-                <li><a href="https://tidaltal.es" target="_blank">Tidal Tales Website</a></li>
-                <li><a href="https://www.github.com/digitalmethodsinitiative/zeeschuimer" target="_blank">Based on DMI's Zeeschuimer</a></li>
+                <li><a href="https://tidaltal.es" target="_blank">Tidal Tales Help</a></li>
+                <li><a href="https://www.github.com/digitalmethodsinitiative/zeeschuimer" target="_blank">Forked from DMI's Zeeschuimer</a></li>
             </ul>
         </nav>
     </footer>
