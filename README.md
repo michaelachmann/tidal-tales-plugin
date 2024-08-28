@@ -1,4 +1,6 @@
 # 💾 Tidal Tales Plugin - Local-Only Real-Time Instagram Stories Capture with Firefox
+[![DOI](https://zenodo.org/badge/668640065.svg)](https://zenodo.org/doi/10.5281/zenodo.13383205)
+
 
 <p align="center"><img alt="A screenshot of Tidal Tales Plugin Pop Up" width="50%" src="images/example_screenshot.png"></p>
 
@@ -28,3 +30,8 @@ The Tidal Tales plugin is licensed under the Mozilla Public License Version 2.0.
 ## Credits
 
 We acknowledges the research and development efforts by Stijn Peeters for the original Zeeschuimer project. The modifications made for implementing the real-time data capture mechanism were carried out by [Michael Achmann-Denkler](https://go.ur.de/michael-achmann) to support his PhD project and teaching at the University of Regensburg.
+
+## Citation
+```
+Michael Achmann-Denkler. (2024). michaelachmann/tidal-tales-plugin: First Tidal Tales Release (v2.0.0). Zenodo. https://doi.org/10.5281/zenodo.13383206
+```
