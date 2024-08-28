@@ -1,8 +1,13 @@
 # 💾 Tidal Tales Plugin - Local-Only Real-Time Instagram Stories Capture with Firefox
 
-<p align="center"><img alt="A screenshot of Tidal Tales Plugin Pop Up" src="images/example_screenshot.png"></p>
+<p align="center"><img alt="A screenshot of Tidal Tales Plugin Pop Up" width="50%" src="images/example_screenshot.png"></p>
 
 The Tidal Tales Plugin is a modified version of the original [Zeeschuimer project](https://github.com/digitalmethodsinitiative/zeeschuimer) designed to capture Instagram Stories. The project is based on the research and work done by Stijn Peeters for the [Digital Methods Initiative](https://digitalmethods.net).
+
+## Usage 
+
+[Download the latest version of the Tidal Tales Plugin](https://github.com/michaelachmann/tidal-tales-plugin/releases/latest) and install the extension using [Firefox](https://www.mozilla.org/en-GB/firefox/). Once the plugin is installed, start browsing stories. The media files and metadata are downloaded while browsing and stored in your downloads location. When done with the data collection, open the pop-up menu of our plugin and click *Export as CSV* to save a CSV file with all metadata in your download location. The CSV file includes the relative file locations for images and videos. 
+
 
 ## Original Zeeschuimer
 

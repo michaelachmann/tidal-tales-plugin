@@ -170,17 +170,6 @@
         </nav>
     </footer>
 
-    <script>
-        document.getElementById('clear-data').addEventListener('click', async () => {
-            if (confirm("Are you sure you want to reset the database? This action cannot be undone.")) {
-                const background = browser.extension.getBackgroundPage();
-                await background.db.items.clear();
-                updateStats(); // Update the stats after clearing data
-            }
-        });
-
-        document.getElementById('export-csv').addEventListener('click', exportDatabaseToCSV);
-    </script>
     <script src="popup.js"></script>
 </body>
 </html>
