@@ -125,12 +125,19 @@ zeeschuimer.register_module(
         };
 
 
-        const batchDownload = async (downloadTasks, batchSize = 5) => {
+        const batchDownload = async (downloadTasks, batchSize = 5, minDelay = 5000, maxDelay = 10000) => {
             for (let i = 0; i < downloadTasks.length; i += batchSize) {
                 const batch = downloadTasks.slice(i, i + batchSize);
                 await Promise.all(batch.map(task => task()));
+        
+                if (i + batchSize < downloadTasks.length) {
+                    const delay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+                    console.log(`Waiting for ${delay}ms before next batch...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
             }
         };
+        
 
         const traverse = async function (obj) {
             for (const property in obj) {
