@@ -1,19 +1,20 @@
 {
 
-  "description": "Collect Instagram stories while browsing and instantly save all data to your disk",
+  "description": "Collect Instagram stories while browsing and instantly save all data to your disk.",
   "manifest_version": 2,
   "name": "Tidal Tales Plugin",
-  "version": "1.8.6",
+  "version": "2.0.0",
   "homepage_url": "https://tidaltal.es",
 
   "icons": {
-    "48": "images/logo-blue-48.ico",
-    "96": "images/logo-blue-96.ico"
+    "48": "images/logo-blue-48.png",
+    "64": "images/logo-blue-64.png",
+    "96": "images/logo-blue-96.png"
   },
 
   "browser_action": {
     "default_popup": "popup/popup.html",
-    "default_icon": "images/logo-blue-64.ico"
+    "default_icon": "images/logo-blue-64.png"
 },
 
   "permissions": [
@@ -36,5 +37,6 @@
       "js/zs-background.js",
       "modules/ig_stories.js"
       ]
-  }
+  },
+  "browser_specific_settings": {"gecko": {"id": "{07185422-e07b-4cc3-9c64-8e1802260232}"}}
 }
