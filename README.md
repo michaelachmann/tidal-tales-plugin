@@ -1,6 +1,7 @@
 # 💾 Tidal Tales Plugin - Local-Only Real-Time Instagram Stories Capture with Firefox
 [![DOI](https://zenodo.org/badge/668640065.svg)](https://zenodo.org/doi/10.5281/zenodo.13383205)
-
+[![arXiv]([https://zenodo.org/badge/668640065.svg](https://img.shields.io/static/v1?message=arXiv:2409.01880&logo=arxiv&labelColor=B31B1B&color=B31B1B&logoColor=white&label=%20
+))]([https://zenodo.org/doi/10.5281/zenodo.13383205](https://doi.org/10.48550/arXiv.2409.01880))
 
 <p align="center"><img alt="A screenshot of Tidal Tales Plugin Pop Up" width="50%" src="images/example_screenshot.png"></p>
 
