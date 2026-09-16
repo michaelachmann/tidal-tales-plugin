@@ -1,185 +1,128 @@
+/* Capture only supported platforms; downloads remain entirely local. */
 window.db = new Dexie('zeeschuimer-items');
-window.db.version(1).stores({
-    items: "++id, item_id, nav_index, source_platform",
-    uploads: "++id",
-    nav: "++id, tab_id, session",
-    settings: "key"
+db.version(1).stores({
+    items: '++id, item_id, nav_index, source_platform',
+    uploads: '++id', nav: '++id, tab_id, session', settings: 'key'
 });
 
 window.zeeschuimer = {
-    modules: {},
-    session: null,
-    tab_url_map: {},
-
-    /**
-     * Register Zeeschuimer module
-     * @param name  Module identifier
-     * @param domain  Module primary domain name
-     * @param callback  Function to parse request content with, returning an Array of extracted items
-     */
-    register_module: function (name, domain, callback) {
-        this.modules[domain] = {
-            name: name,
-            callback: callback
-        };
+    modules: {}, session: null, tab_url_map: {}, queue: Promise.resolve(), download_jobs: new Map(),
+    register_module(name, domain, callback) {
+        this.modules[domain] = {name, callback};
     },
-
-    /**
-     * Initialise Zeeschuimer
-     * Called on browser session start; increases session index to aid in deduplicating extracted items.
-     */
-    init: async function () {
-        let session;
-        session = await db.settings.get("session");
-        if (!session) {
-            session = {"key": "session", "value": 0};
-            await db.settings.add(session);
-        }
-
-        session["value"] += 1;
-        this.session = session["value"];
-        await db.settings.update("session", session);
-        await db.nav.where("session").notEqual(this.session).delete();
+    async init() {
+        await db.transaction('rw', db.settings, db.nav, db.items, async () => {
+            const session = await db.settings.get('session');
+            this.session = (session ? session.value : 0) + 1;
+            await db.settings.put({key: 'session', value: this.session});
+            await db.nav.clear();
+            // A stopped background page loses its in-memory download queue.
+            await db.items.toCollection().modify(row => {
+                if (row.download_status === 'pending') {
+                    row.download_status = 'failed';
+                    row.download_error = 'Capture interrupted by browser restart; revisit the item to retry.';
+                }
+            });
+        });
     },
-
-    /**
-     * Request listener
-     * Filters HTTP requests and passes the content to the parser
-     * @param details  Request details
-     */
-    listener: function (details) {
-        let filter = browser.webRequest.filterResponseData(details.requestId);
-        let decoder = new TextDecoder("utf-8");
-        let full_response = '';
-        let source_url = details.url;
-        let source_platform_url = details.hasOwnProperty("originUrl") ? details.originUrl : source_url;
-
+    enqueue(operation) {
+        const work = this.queue.then(() => this.ready).then(operation);
+        this.queue = work.catch(error => console.error('Tidal Tales capture failed:', error));
+        return work;
+    },
+    listener(details) {
+        // Extension downloads have no browsing tab and must never be captured again.
+        if (details.tabId < 0) return {};
+        let filter;
+        try { filter = browser.webRequest.filterResponseData(details.requestId); }
+        catch (error) { console.error('Unable to inspect response:', error); return {}; }
+        const decoder = new TextDecoder('utf-8');
+        let response = '';
+        let bytes = 0;
+        let oversized = false;
         filter.ondata = event => {
-            let str = decoder.decode(event.data, {stream: true});
-            full_response += str;
             filter.write(event.data);
-        }
-
-        filter.onstop = async (event) => {
-            let base_url = source_platform_url ? source_platform_url : source_url;
-            let source_platform = base_url.split('://').pop().split('/')[0].replace(/^www\./, '').toLowerCase();
-            
-            zeeschuimer.parse_request(full_response, source_platform_url, source_url, details.tabId);
-
+            bytes += event.data.byteLength;
+            if (bytes > 32 * 1024 * 1024) { oversized = true; response = ''; }
+            if (!oversized) response += decoder.decode(event.data, {stream: true});
+        };
+        filter.onstop = () => {
+            // Release the page response before database or download work starts.
             filter.disconnect();
-            full_response = '';
-        }
-
+            if (!oversized) {
+                response += decoder.decode();
+                const captured = response;
+                zeeschuimer.enqueue(() => zeeschuimer.parse_request(
+                    captured, details.originUrl || details.url, details.url, details.tabId
+                )).catch(() => {});
+            }
+            response = '';
+        };
+        filter.onerror = () => { response = ''; };
         return {};
     },
-
-    /**
-     * Parse captured request
-     * @param response  Content of the request
-     * @param source_platform_url  URL of the *page* the data was requested from
-     * @param source_url  URL of the content that was captured
-     * @param tabId  ID of the tab in which the request was captured
-     */
-    parse_request: async function (response, source_platform_url, source_url, tabId) {
-        if (!source_platform_url) {
-            source_platform_url = source_url;
-        }
-
-        // what url was loaded in the tab the previous time?
-        let old_url = '';
-        if (tabId in this.tab_url_map) {
-            old_url = this.tab_url_map[tabId];
-        }
-
-        try {
-            // get the *actual url* of the tab, not the url that the request
-            // reports, which may be wrong
-            let tab = await browser.tabs.get(tabId);
-            source_platform_url = tab.url;
-        } catch (Error) {
-            tabId = -1;
-            // invalid tab id, use provided originUrl
-        }
-
-        // sometimes the tab URL changes without triggering a webNavigation
-        // event! so check if the URL changes, and then increase the nav
-        // index *as if* an event had triggered if it does
-        if (old_url && source_platform_url !== old_url) {
-            await zeeschuimer.nav_handler(tabId);
-        }
-
+    async parse_request(response, source_platform_url, source_url, tabId) {
+        try { source_platform_url = (await browser.tabs.get(tabId)).url || source_platform_url; }
+        catch (_) { /* A tab may close while its response is finishing. */ }
+        source_platform_url = source_platform_url || source_url;
+        const oldURL = this.tab_url_map[tabId];
+        if (oldURL && oldURL !== source_platform_url) await this.nav_handler(tabId);
         this.tab_url_map[tabId] = source_platform_url;
-
-        // get the navigation index for the tab
-        // if any of the processed items already exist for this combination of
-        // navigation index and tab ID, it is ignored as a duplicate
-        let nav_index = await db.nav.where({"tab_id": tabId, "session": this.session}).first();
-        if (!nav_index) {
-            nav_index = {"tab_id": tabId, "session": this.session, "index": 0};
-            await db.nav.add(nav_index);
+        let nav = await db.nav.where({tab_id: tabId, session: this.session}).first();
+        if (!nav) {
+            nav = {tab_id: tabId, session: this.session, index: 0};
+            nav.id = await db.nav.add(nav);
         }
-        nav_index = nav_index.session + ":" + nav_index.tab_id + ":" + nav_index.index;
-
-        let item_list = [];
-        for (let module in this.modules) {
-            item_list = await this.modules[module].callback(response, source_platform_url, source_url);
-            if (item_list && item_list.length > 0) {
-                await Promise.all(item_list.map(async (item) => {
-                    if (!item) {
-                        return;
-                    }
-
-                    let item_id = item["id"];
-                    let exists = await db.items.where({"item_id": item_id, "nav_index": nav_index}).first();
-
-                    if (!exists) {
-                        await db.items.add({
-                            "nav_index": nav_index,
-                            "item_id": item_id,
-                            "timestamp_collected": Date.now(),
-                            "source_platform": module,
-                            "source_platform_url": source_platform_url,
-                            "source_url": source_url,
-                            "user_agent": navigator.userAgent,
-                            "data": item
-                        });
-                        
-                    }
-
-                }));
-
-                return;
+        const nav_index = `${this.session}:${tabId}:${nav.index}`;
+        for (const [platform, module] of Object.entries(this.modules)) {
+            let items;
+            try { items = await module.callback(response, source_platform_url, source_url); }
+            catch (error) { console.error(`Unable to parse ${module.name}:`, error); continue; }
+            for (const item of items || []) {
+                const item_id = String(item.id || item.pk || '');
+                if (!item_id) continue;
+                // Serialized response processing makes this check and insert atomic
+                // relative to other capture jobs, and scopes IDs by platform.
+                const existing = await db.items.where({item_id, nav_index})
+                    .filter(row => row.source_platform === platform).first();
+                if (existing && JSON.stringify(existing.data) === JSON.stringify(item)) continue;
+                // Detail responses may add media URLs missing from a profile grid.
+                const data = existing ? {...existing.data} : {};
+                for (const [key, value] of Object.entries(item)) {
+                    if (value != null && (!Array.isArray(value) || value.length || !data[key])) data[key] = value;
+                }
+                if (existing && JSON.stringify(existing.data) === JSON.stringify(data)) continue;
+                const row = {nav_index, item_id, timestamp_collected: Date.now(),
+                    source_platform: platform, source_platform_url, source_url,
+                    user_agent: navigator.userAgent, data, download_status: 'pending', local_files: []};
+                if (existing) { row.id = existing.id; await db.items.update(row.id, row); }
+                else row.id = await db.items.add(row);
+                // Downloads have a separate bounded queue and cannot block capture.
+                const previous = this.download_jobs.get(row.id) || Promise.resolve();
+                const job = previous.then(() => tidalStorage.save(row)).then(result => db.items.update(row.id, result))
+                    .catch(error => db.items.update(row.id, {download_status: 'failed', download_error: String(error)}))
+                    .catch(error => console.error('Unable to record download status:', error));
+                this.download_jobs.set(row.id, job);
+                job.finally(() => { if (this.download_jobs.get(row.id) === job) this.download_jobs.delete(row.id); });
             }
         }
     },
-
-
-    /**
-     * Callback for browser navigation
-     * Increases the nav_index for a given tab to aid in deduplication of captured items
-     * @param tabId  Tab ID to update nav index for
-     */
-    nav_handler: async function (tabId) {
-        if (tabId.hasOwnProperty("tabId")) {
-            tabId = tabId.tabId;
-        }
-
-        let nav = await db.nav.where({"session": this.session, "tab_id": tabId});
-        if (!nav) {
-            nav = {"session": this.session, "tab_id": tabId, "index": 0}
-            await db.nav.add(nav);
-        }
-
-        await db.nav.where({"session": this.session, "tab_id": tabId}).modify({"index": nav["index"] + 1});
+    async nav_handler(details) {
+        if (typeof details === 'object' && details.frameId !== undefined && details.frameId !== 0) return;
+        const tabId = typeof details === 'object' ? details.tabId : details;
+        const nav = await db.nav.where({session: this.session, tab_id: tabId}).first();
+        if (nav) await db.nav.update(nav.id, {index: nav.index + 1});
+        else await db.nav.add({session: this.session, tab_id: tabId, index: 0});
+        delete this.tab_url_map[tabId];
     }
-}
-
-zeeschuimer.init();
-
-browser.webRequest.onBeforeRequest.addListener(
-    zeeschuimer.listener, {urls: ["https://*/*"], types: ["main_frame", "xmlhttprequest"]}, ["blocking"]
-);
-
-browser.webNavigation.onCommitted.addListener(
-    zeeschuimer.nav_handler
-);
+};
+zeeschuimer.ready = zeeschuimer.init();
+zeeschuimer.ready.catch(error => console.error('Tidal Tales database initialization failed:', error));
+browser.webRequest.onBeforeRequest.addListener(zeeschuimer.listener, {
+    urls: ['https://*.instagram.com/*', 'https://*.tiktok.com/*'],
+    types: ['main_frame', 'xmlhttprequest']
+}, ['blocking']);
+browser.webNavigation.onCommitted.addListener(details => {
+    zeeschuimer.enqueue(() => zeeschuimer.nav_handler(details)).catch(() => {});
+}, {url: [{hostSuffix: 'instagram.com'}, {hostSuffix: 'tiktok.com'}]});
+browser.tabs.onRemoved.addListener(tabId => { delete zeeschuimer.tab_url_map[tabId]; });

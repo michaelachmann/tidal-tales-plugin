@@ -9,7 +9,7 @@
             font-family: Arial, sans-serif;
             padding: 10px;
             width: 350px;
-            height: 450px;
+            min-height: 450px;
             overflow-y: auto;
             background-color: #f0f0f0;
             text-align: center;
@@ -76,6 +76,11 @@
             background-color: #c9302c; /* Darker shade of red */
         }
 
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
         #clear-data {
             background-color: #d9534f; /* Shade of teal */
             width: 40px; /* Small width to match the icon size */
@@ -102,8 +107,39 @@
         }
 
         #status {
-            margin-bottom: 10px;
+            margin: 8px 0 0;
+            padding: 8px;
+            border-radius: 4px;
+            background: #e5f3fb;
             color: #007ACC;
+            text-align: left;
+            font-size: 0.85em;
+        }
+
+        #status.error {
+            color: #842029;
+            background: #f8d7da;
+        }
+
+        .summary {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 12px;
+            color: #555;
+            font-size: 0.85em;
+        }
+
+        .summary span {
+            background: #fff;
+            border-radius: 4px;
+            padding: 7px;
+            flex: 1;
+        }
+
+        td.empty {
+            color: #777;
+            text-align: center;
         }
 
         .silent {
@@ -143,13 +179,17 @@
 <body>
     <img id="logo" src="../images/logo-blue.png" alt="Tidal Tales Logo">
     <h1>Tidal Tales Plugin</h1>
-    <div id="version">Version: </div>
-    <div id="status">Loading data...</div>
+    <div id="version">Version</div>
+    <div class="summary" aria-label="Collection summary">
+        <span id="collection-total">Loading records…</span>
+        <span id="download-total">Loading files…</span>
+    </div>
+    <div id="status" role="status" aria-live="polite">Loading data…</div>
     <table id="item-table">
         <thead>
             <tr>
-                <th>Post Type</th>
-                <th>#</th>
+                <th>Content type</th>
+                <th>Records</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -157,9 +197,9 @@
 
     <div class="buttons">
         <button id="export-csv">Export as CSV</button>
-        <button id="clear-data" title="Reset DB"></button>
+        <button id="clear-data" title="Clear collected metadata" aria-label="Clear collected metadata"></button>
     </div>
-    <p class="silent">All media files are saved to your download folder. See <a href="https://tidaltal.es" target="_blank">documentation</a> for further information. Resetting the DB keeps the media files.</p>
+    <p class="silent">Media downloads are stored under the Tidal Tales folder in your download location. The CSV reports each recorded file path and any download error. Clearing metadata keeps downloaded files.</p>
 
     <footer class="footer">
         <nav>

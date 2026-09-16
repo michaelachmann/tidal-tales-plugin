@@ -1,42 +1,43 @@
 {
-
-  "description": "Collect Instagram stories while browsing and instantly save all data to your disk.",
+  "description": "Collect Instagram Stories, Reels and posts and TikTok videos while browsing, saving metadata and media locally.",
   "manifest_version": 2,
   "name": "Tidal Tales Plugin",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "homepage_url": "https://tidaltal.es",
-
   "icons": {
     "48": "images/logo-blue-48.png",
     "64": "images/logo-blue-64.png",
     "96": "images/logo-blue-96.png"
   },
-
   "browser_action": {
     "default_popup": "popup/popup.html",
     "default_icon": "images/logo-blue-64.png"
-},
-
+  },
   "permissions": [
-    "webRequest", "webRequestBlocking", "webNavigation", "<all_urls>", "storage", "downloads", "activeTab", "tabs",
+    "webRequest",
+    "webRequestBlocking",
+    "webNavigation",
+    "https://*.instagram.com/*",
+    "https://*.tiktok.com/*",
+    "downloads",
+    "tabs",
     "unlimitedStorage"
   ],
-
   "incognito": "not_allowed",
-
-  "web_accessible_resources": [
-    "popup/popup.html",
-    "popup/popup.js",
-    "images/logo-blue.png"
-  ],
-
   "background": {
     "scripts": [
       "inc/dexie.js",
       "inc/he.js",
+      "js/local-storage.js",
       "js/zs-background.js",
-      "modules/ig_stories.js"
-      ]
+      "modules/ig_stories.js",
+      "modules/instagram.js",
+      "modules/tiktok.js"
+    ]
   },
-  "browser_specific_settings": {"gecko": {"id": "{07185422-e07b-4cc3-9c64-8e1802260232}"}}
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{07185422-e07b-4cc3-9c64-8e1802260232}"
+    }
+  }
 }
