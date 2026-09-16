@@ -7,11 +7,16 @@ db.version(1).stores({
 
 window.zeeschuimer = {
     modules: {}, session: null, tab_url_map: {}, queue: Promise.resolve(), download_jobs: new Map(),
+    capture_settings: null, capture_revision: 0, settings_queue: Promise.resolve(),
+    capture_defaults: {paused: false, modules: {stories: true, posts: true, reels: true, tiktok: true}},
     register_module(name, domain, callback) {
         this.modules[domain] = {name, callback};
     },
     async init() {
+        let loadedCaptureSettings;
         await db.transaction('rw', db.settings, db.nav, db.items, async () => {
+            const savedCaptureSettings = await db.settings.get('capture-settings');
+            loadedCaptureSettings = this.validate_capture_settings(savedCaptureSettings && savedCaptureSettings.value);
             const session = await db.settings.get('session');
             this.session = (session ? session.value : 0) + 1;
             await db.settings.put({key: 'session', value: this.session});
@@ -24,6 +29,76 @@ window.zeeschuimer = {
                 }
             });
         });
+        // Do not expose settings until the initialization transaction commits.
+        this.capture_settings = loadedCaptureSettings;
+    },
+    validate_capture_settings(value) {
+        const defaults = this.capture_defaults;
+        const saved = value && typeof value === 'object' ? value : {};
+        const modules = saved.modules && typeof saved.modules === 'object' ? saved.modules : {};
+        return {
+            paused: typeof saved.paused === 'boolean' ? saved.paused : defaults.paused,
+            modules: Object.fromEntries(Object.entries(defaults.modules).map(([name, enabled]) =>
+                [name, typeof modules[name] === 'boolean' ? modules[name] : enabled]))
+        };
+    },
+    capture_settings_snapshot() {
+        return {paused: this.capture_settings.paused, modules: {...this.capture_settings.modules}};
+    },
+    async getCaptureSettings() {
+        await this.ready;
+        return this.capture_settings_snapshot();
+    },
+    async setCaptureSettings(patch) {
+        await this.ready;
+        const update = async () => {
+            if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new TypeError('Capture settings must be an object.');
+            if ('paused' in patch && typeof patch.paused !== 'boolean') throw new TypeError('paused must be a boolean.');
+            if ('modules' in patch && (!patch.modules || typeof patch.modules !== 'object' || Array.isArray(patch.modules))) {
+                throw new TypeError('modules must be an object.');
+            }
+            const modulePatch = patch.modules || {};
+            for (const [name, enabled] of Object.entries(modulePatch)) {
+                if (!Object.prototype.hasOwnProperty.call(this.capture_defaults.modules, name) || typeof enabled !== 'boolean') {
+                    throw new TypeError(`Invalid capture module setting: ${name}`);
+                }
+            }
+            const next = {paused: 'paused' in patch ? patch.paused : this.capture_settings.paused,
+                modules: {...this.capture_settings.modules, ...modulePatch}};
+            // Keep the working settings unchanged if persistence fails.
+            await db.settings.put({key: 'capture-settings', value: next});
+            this.capture_settings = next;
+            this.capture_revision += 1;
+            return this.capture_settings_snapshot();
+        };
+        const result = this.settings_queue.then(update);
+        this.settings_queue = result.catch(() => {});
+        return result;
+    },
+    platform_for_url(url) {
+        try {
+            const host = new URL(url).hostname;
+            if (host === 'tiktok.com' || host.endsWith('.tiktok.com')) return 'tiktok.com';
+            if (host === 'instagram.com' || host.endsWith('.instagram.com')) return 'instagram.com';
+        } catch (_) { /* Ignore malformed request URLs. */ }
+        return null;
+    },
+    platform_enabled(platform) {
+        if (!this.capture_settings || this.capture_settings.paused) return false;
+        if (platform === 'tiktok.com') return this.capture_settings.modules.tiktok;
+        if (platform === 'instagram.com') {
+            return this.capture_settings.modules.stories || this.capture_settings.modules.posts || this.capture_settings.modules.reels;
+        }
+        return false;
+    },
+    item_enabled(platform, item) {
+        if (!this.platform_enabled(platform)) return false;
+        if (platform === 'tiktok.com') return this.capture_settings.modules.tiktok;
+        const kind = String(item && item._tt_type || '').toLowerCase();
+        if (kind === 'story') return this.capture_settings.modules.stories;
+        if (kind === 'reel') return this.capture_settings.modules.reels;
+        if (kind === 'post') return this.capture_settings.modules.posts;
+        return false;
     },
     enqueue(operation) {
         const work = this.queue.then(() => this.ready).then(operation);
@@ -33,6 +108,9 @@ window.zeeschuimer = {
     listener(details) {
         // Extension downloads have no browsing tab and must never be captured again.
         if (details.tabId < 0) return {};
+        const platform = this.platform_for_url(details.url);
+        if (!this.platform_enabled(platform)) return {};
+        const captureRevision = this.capture_revision;
         let filter;
         try { filter = browser.webRequest.filterResponseData(details.requestId); }
         catch (error) { console.error('Unable to inspect response:', error); return {}; }
@@ -53,7 +131,7 @@ window.zeeschuimer = {
                 response += decoder.decode();
                 const captured = response;
                 zeeschuimer.enqueue(() => zeeschuimer.parse_request(
-                    captured, details.originUrl || details.url, details.url, details.tabId
+                    captured, details.originUrl || details.url, details.url, details.tabId, captureRevision
                 )).catch(() => {});
             }
             response = '';
@@ -61,7 +139,8 @@ window.zeeschuimer = {
         filter.onerror = () => { response = ''; };
         return {};
     },
-    async parse_request(response, source_platform_url, source_url, tabId) {
+    async parse_request(response, source_platform_url, source_url, tabId, captureRevision = this.capture_revision) {
+        if (captureRevision !== this.capture_revision || this.capture_settings.paused) return;
         try { source_platform_url = (await browser.tabs.get(tabId)).url || source_platform_url; }
         catch (_) { /* A tab may close while its response is finishing. */ }
         source_platform_url = source_platform_url || source_url;
@@ -75,10 +154,12 @@ window.zeeschuimer = {
         }
         const nav_index = `${this.session}:${tabId}:${nav.index}`;
         for (const [platform, module] of Object.entries(this.modules)) {
+            if (captureRevision !== this.capture_revision || !this.platform_enabled(platform)) continue;
             let items;
             try { items = await module.callback(response, source_platform_url, source_url); }
             catch (error) { console.error(`Unable to parse ${module.name}:`, error); continue; }
             for (const item of items || []) {
+                if (captureRevision !== this.capture_revision || !this.item_enabled(platform, item)) continue;
                 const item_id = String(item.id || item.pk || '');
                 if (!item_id) continue;
                 // Serialized response processing makes this check and insert atomic
@@ -92,6 +173,8 @@ window.zeeschuimer = {
                     if (value != null && (!Array.isArray(value) || value.length || !data[key])) data[key] = value;
                 }
                 if (existing && JSON.stringify(existing.data) === JSON.stringify(data)) continue;
+                // Settings may change while the duplicate lookup is awaiting IndexedDB.
+                if (captureRevision !== this.capture_revision || !this.item_enabled(platform, item)) continue;
                 const row = {nav_index, item_id, timestamp_collected: Date.now(),
                     source_platform: platform, source_platform_url, source_url,
                     user_agent: navigator.userAgent, data, download_status: 'pending', local_files: []};
@@ -118,7 +201,7 @@ window.zeeschuimer = {
 };
 zeeschuimer.ready = zeeschuimer.init();
 zeeschuimer.ready.catch(error => console.error('Tidal Tales database initialization failed:', error));
-browser.webRequest.onBeforeRequest.addListener(zeeschuimer.listener, {
+browser.webRequest.onBeforeRequest.addListener(details => zeeschuimer.listener(details), {
     urls: ['https://*.instagram.com/*', 'https://*.tiktok.com/*'],
     types: ['main_frame', 'xmlhttprequest']
 }, ['blocking']);
