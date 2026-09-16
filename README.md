@@ -12,6 +12,12 @@ The Tidal Tales Plugin is a modified version of the original [Zeeschuimer projec
 [Download the latest version of the Tidal Tales Plugin](https://github.com/michaelachmann/tidal-tales-plugin/releases/latest) and install the extension using [Firefox](https://www.mozilla.org/en-GB/firefox/). Once the plugin is installed, browse Instagram Stories, posts or Reels, or TikTok videos. The media files and metadata are downloaded while browsing and stored in your downloads location. When done with the data collection, open the pop-up menu of our plugin and click *Export as CSV* to save a CSV file with all metadata in your download location. The CSV file includes file paths relative to your Downloads directory, download outcomes, platform, and content type. Only completed or previously verified downloads appear as saved media paths. Older records are marked as unverified.
 
 
+### Capture controls
+
+The popup has independent switches for Instagram Stories, posts/carousels, Reels, and TikTok videos/photo posts. All start enabled to preserve existing behavior, and your choices are saved across extension reloads and browser restarts. **Pause all** stops new capture without changing those choices; **Resume capture** restores them. Queued downloads continue after pausing or disabling a module. Reload a social-media page after resuming if its content was already loaded while capture was off.
+
+Each switch shows its collected record count, including records captured before it was turned off. The collection summary distinguishes completed downloads, pending records, and records needing attention. **Export CSV** always exports the whole collection, including disabled modules. **Manage collection → Clear metadata** removes database records after confirmation, while preserving downloaded files and capture preferences.
+
 ## Development build (2.1.0)
 
 To try this checkout, open `about:debugging#/runtime/this-firefox` in Firefox, choose **Load Temporary Add-on**, and select this repository's `manifest.json`. Temporary installations are removed when Firefox restarts. The release download above remains the published version until a new signed release is made.

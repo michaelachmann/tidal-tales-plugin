@@ -197,53 +197,87 @@ async function getItems() {
     return background.db.items.toArray();
 }
 
+function summarizeItems(items) {
+    const counts = {stories: 0, posts: 0, reels: 0, tiktok: 0};
+    const downloads = {complete: 0, pending: 0, issues: 0, unknown: 0};
+    for (const item of items) {
+        const type = contentType(item);
+        const key = item.source_platform === 'tiktok.com' ? 'tiktok' :
+            {Story: 'stories', Post: 'posts', Reel: 'reels'}[type];
+        if (key) counts[key]++;
+        const state = asText(item.download_status).toLowerCase();
+        if (state === 'complete') downloads.complete++;
+        else if (state === 'pending') downloads.pending++;
+        else if (['failed', 'partial', 'error'].includes(state)) downloads.issues++;
+        else downloads.unknown++;
+    }
+    return {counts, downloads, total: items.length};
+}
+
+let captureSettings = null;
+let savingSettings = false;
+let exporting = false;
+
+function renderCaptureSettings(settings) {
+    captureSettings = settings;
+    const active = Object.values(settings.modules).filter(Boolean).length;
+    const collecting = !settings.paused && active > 0;
+    document.getElementById('capture-state').textContent = settings.paused ? 'Capture paused' :
+        active === 0 ? 'All modules off' : 'Capture on';
+    document.getElementById('state-dot').classList.toggle('active', collecting);
+    const pause = document.getElementById('pause-capture');
+    pause.textContent = settings.paused ? 'Resume capture' : 'Pause all';
+    pause.disabled = savingSettings || (!settings.paused && active === 0);
+    document.getElementById('capture-hint').textContent = settings.paused ?
+        'No new items are collected. Queued downloads still finish.' : active === 0 ?
+        'Turn on a module to start collecting as you browse.' :
+        'Choose what to collect. Changes save automatically.';
+    for (const [key, enabled] of Object.entries(settings.modules)) {
+        const input = document.getElementById(`capture-${key}`);
+        if (!input) continue;
+        input.checked = enabled;
+        input.disabled = savingSettings;
+    }
+}
+
+async function saveCaptureSettings(patch) {
+    if (savingSettings || !captureSettings) return;
+    savingSettings = true;
+    renderCaptureSettings(captureSettings);
+    try {
+        const background = browser.extension.getBackgroundPage();
+        captureSettings = await background.zeeschuimer.setCaptureSettings(patch);
+        setMessage('');
+    } catch (error) {
+        setMessage(error.message || 'Could not save capture settings. Please try again.', true);
+    } finally {
+        savingSettings = false;
+        renderCaptureSettings(captureSettings);
+    }
+}
+
 async function updateStats() {
     try {
-        const items = await getItems();
-        const categories = new Map([
-            ['Story', 0], ['Post', 0], ['Reel', 0], ['TikTok video', 0], ['TikTok post', 0], ['Unknown', 0]
+        const background = browser.extension.getBackgroundPage();
+        const [items, settings] = await Promise.all([
+            getItems(), background.zeeschuimer.getCaptureSettings()
         ]);
-        const downloadTotals = {complete: 0, pending: 0, issues: 0, unknown: 0};
-        for (const item of items) {
-            const type = contentType(item);
-            categories.set(type, (categories.get(type) || 0) + 1);
-            const status = asText(item.download_status).toLowerCase();
-            if (status === 'complete') downloadTotals.complete += 1;
-            else if (status === 'pending') downloadTotals.pending += 1;
-            else if (['failed', 'partial', 'error'].includes(status)) downloadTotals.issues += 1;
-            else downloadTotals.unknown += 1;
+        // A polling response must not overwrite a toggle currently being saved.
+        if (!savingSettings) renderCaptureSettings(settings);
+        const {counts, downloads, total} = summarizeItems(items);
+        for (const [key, count] of Object.entries(counts)) {
+            document.getElementById(`count-${key}`).textContent = new Intl.NumberFormat().format(count);
         }
-
-        const tbody = document.querySelector('#item-table tbody');
-        tbody.replaceChildren();
-        for (const [label, count] of categories) {
-            if (!count) continue;
-            const row = document.createElement('tr');
-            const labelCell = document.createElement('td');
-            const countCell = document.createElement('td');
-            labelCell.textContent = label;
-            countCell.textContent = new Intl.NumberFormat().format(count);
-            row.append(labelCell, countCell);
-            tbody.appendChild(row);
-        }
-        if (!items.length) {
-            const row = document.createElement('tr');
-            const cell = document.createElement('td');
-            cell.colSpan = 2;
-            cell.className = 'empty';
-            cell.textContent = 'No items collected yet';
-            row.appendChild(cell);
-            tbody.appendChild(row);
-        }
-        document.getElementById('export-csv').disabled = items.length === 0;
-        document.getElementById('collection-total').textContent = `${new Intl.NumberFormat().format(items.length)} records`;
-        document.getElementById('download-total').textContent =
-            `${downloadTotals.complete} complete · ${downloadTotals.pending} pending · ${downloadTotals.issues} issues` +
-            (downloadTotals.unknown ? ` · ${downloadTotals.unknown} unverified` : '');
-        setMessage(
-            downloadTotals.issues ? `${downloadTotals.issues} record${downloadTotals.issues === 1 ? ' has' : 's have'} download issues. Export the CSV for details.` : '',
-            downloadTotals.issues > 0
-        );
+        document.getElementById('export-csv').disabled = total === 0 || exporting;
+        document.getElementById('clear-data').disabled = total === 0;
+        document.getElementById('collection-total').textContent = `${new Intl.NumberFormat().format(total)} records`;
+        document.getElementById('download-total').textContent = total ?
+            `${downloads.complete} complete · ${downloads.pending} pending` +
+            (downloads.unknown ? ` · ${downloads.unknown} unverified` : '') :
+            'Nothing collected yet. Browse a supported site to begin.';
+        const issues = document.getElementById('download-issues');
+        issues.hidden = !downloads.issues;
+        issues.textContent = `${downloads.issues} record${downloads.issues === 1 ? ' needs' : 's need'} attention. Export CSV for download errors.`;
     } catch (error) {
         console.error('Could not load collection statistics', error);
         setMessage(error.message || 'Could not load collection statistics.', true);
@@ -272,6 +306,8 @@ async function clearDatabase() {
 }
 
 async function exportDatabaseToCSV() {
+    if (exporting) return;
+    exporting = true;
     const button = document.getElementById('export-csv');
     button.disabled = true;
     try {
@@ -296,7 +332,8 @@ async function exportDatabaseToCSV() {
         console.error('Could not export collection data', error);
         setMessage(error.message || 'Could not export collection data.', true);
     } finally {
-        button.disabled = false;
+        exporting = false;
+        await refreshStats();
     }
 }
 
@@ -315,6 +352,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     document.getElementById('clear-data').addEventListener('click', clearDatabase);
     document.getElementById('export-csv').addEventListener('click', exportDatabaseToCSV);
+    document.getElementById('pause-capture').addEventListener('click', () => {
+        if (captureSettings) saveCaptureSettings({paused: !captureSettings.paused});
+    });
+    for (const input of document.querySelectorAll('[data-module]')) {
+        input.addEventListener('change', () => saveCaptureSettings({modules: {[input.dataset.module]: input.checked}}));
+    }
     await refreshStats();
-    window.setInterval(refreshStats, 3000);
+    const timer = window.setInterval(refreshStats, 3000);
+    window.addEventListener('unload', () => window.clearInterval(timer), {once: true});
 });

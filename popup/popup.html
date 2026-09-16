@@ -3,213 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tidal Tales Plugin</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 10px;
-            width: 350px;
-            min-height: 450px;
-            overflow-y: auto;
-            background-color: #f0f0f0;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #logo {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto;
-        }
-
-        #version {
-            margin-top: 5px;
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        h1 {
-            font-size: 1.5em;
-            margin: 0.5em 0;
-            color: #333;
-        }
-
-        table {
-            width: 100%;
-            margin: 15px 0;
-            border-collapse: collapse;
-            background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-        }
-
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        th {
-            background-color: #007ACC;
-            color: white;
-        }
-
-        .buttons {
-            display: flex;
-            justify-content: space-between;
-            margin-left: 15px;
-            margin-right: 15px;
-            margin-top: 10px;
-        }
-
-        button {
-            padding: 10px;
-            background-color: #d9534f; /* Shade of red */
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #c9302c; /* Darker shade of red */
-        }
-
-        button:disabled {
-            cursor: not-allowed;
-            opacity: 0.55;
-        }
-
-        #clear-data {
-            background-color: #d9534f; /* Shade of teal */
-            width: 40px; /* Small width to match the icon size */
-            padding: 8px; /* Smaller padding */
-        }
-
-        #clear-data:hover {
-            background-color: #31b0d5; /* Darker teal */
-        }
-
-        #clear-data::before {
-            content: "🗑️ "; /* Unicode for trash bin icon */
-            font-size: 1.2em;
-        }
-
-        #export-csv {
-            background-color: #007ACC; /* Primary blue color */
-            flex-grow: 1; /* Take up the remaining space */
-            margin-right: 5px; /* Add some space between the buttons */
-        }
-
-        #export-csv:hover {
-            background-color: #005b9c; /* Darker shade of blue */
-        }
-
-        #status {
-            margin: 8px 0 0;
-            padding: 8px;
-            border-radius: 4px;
-            background: #e5f3fb;
-            color: #007ACC;
-            text-align: left;
-            font-size: 0.85em;
-        }
-
-        #status.error {
-            color: #842029;
-            background: #f8d7da;
-        }
-
-        .summary {
-            display: flex;
-            justify-content: space-between;
-            gap: 8px;
-            margin-top: 12px;
-            color: #555;
-            font-size: 0.85em;
-        }
-
-        .summary span {
-            background: #fff;
-            border-radius: 4px;
-            padding: 7px;
-            flex: 1;
-        }
-
-        td.empty {
-            color: #777;
-            text-align: center;
-        }
-
-        .silent {
-            font-size: 0.8em; /* Smaller font size */
-            color: #888; /* Shade of gray */
-        }
-
-        .footer {
-            margin-top: auto;
-            padding-top: 10px;
-        }
-
-        .footer nav ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: row; /* Changed to row for better placement */
-            justify-content: center; /* Center the links */
-        }
-
-        .footer nav ul li {
-            margin: 0 10px; /* Added margin for spacing */
-        }
-
-        .footer nav ul li a {
-            text-decoration: none;
-            color: #007ACC;
-            font-size: 0.9em;
-        }
-
-        .footer nav ul li a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <title>Tidal Tales</title>
+    <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <img id="logo" src="../images/logo-blue.png" alt="Tidal Tales Logo">
-    <h1>Tidal Tales Plugin</h1>
-    <div id="version">Version</div>
-    <div class="summary" aria-label="Collection summary">
-        <span id="collection-total">Loading records…</span>
-        <span id="download-total">Loading files…</span>
-    </div>
-    <div id="status" role="status" aria-live="polite">Loading data…</div>
-    <table id="item-table">
-        <thead>
-            <tr>
-                <th>Content type</th>
-                <th>Records</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <header>
+        <img src="../images/logo-blue-48.png" width="36" height="36" alt="">
+        <div><h1>Tidal Tales</h1><span class="muted">Collect as you browse</span></div>
+        <span class="local-label">Local only</span>
+    </header>
 
-    <div class="buttons">
-        <button id="export-csv">Export as CSV</button>
-        <button id="clear-data" title="Clear collected metadata" aria-label="Clear collected metadata"></button>
-    </div>
-    <p class="silent">Media downloads are stored under the Tidal Tales folder in your download location. The CSV reports each recorded file path and any download error. Clearing metadata keeps downloaded files.</p>
+    <main>
+        <section class="capture-state" aria-label="Capture status">
+            <div><span class="state-dot" id="state-dot"></span><strong id="capture-state">Loading…</strong></div>
+            <button id="pause-capture" class="quiet-button" disabled>Pause all</button>
+        </section>
+        <p id="capture-hint" class="hint">Choose what to collect. Changes save automatically.</p>
 
-    <footer class="footer">
-        <nav>
-            <ul>
-                <li><a href="https://tidaltal.es" target="_blank">Tidal Tales Help</a></li>
-                <li><a href="https://www.github.com/digitalmethodsinitiative/zeeschuimer" target="_blank">Forked from DMI's Zeeschuimer</a></li>
-            </ul>
-        </nav>
+        <section class="modules" aria-label="Capture modules">
+            <div class="group-heading"><h2>Instagram</h2><span>Records</span></div>
+            <div class="module-row">
+                <label for="capture-stories">Stories</label><span class="count" id="count-stories">0</span>
+                <input id="capture-stories" class="switch" type="checkbox" role="switch" data-module="stories" aria-label="Capture Instagram Stories" disabled>
+            </div>
+            <div class="module-row">
+                <label for="capture-posts">Posts <span class="muted inline-note">& carousels</span></label><span class="count" id="count-posts">0</span>
+                <input id="capture-posts" class="switch" type="checkbox" role="switch" data-module="posts" aria-label="Capture Instagram posts" disabled>
+            </div>
+            <div class="module-row">
+                <label for="capture-reels">Reels</label><span class="count" id="count-reels">0</span>
+                <input id="capture-reels" class="switch" type="checkbox" role="switch" data-module="reels" aria-label="Capture Instagram Reels" disabled>
+            </div>
+            <div class="group-heading tiktok-heading"><h2>TikTok</h2></div>
+            <div class="module-row">
+                <label for="capture-tiktok">Videos <span class="muted inline-note">& photo posts</span></label><span class="count" id="count-tiktok">0</span>
+                <input id="capture-tiktok" class="switch" type="checkbox" role="switch" data-module="tiktok" aria-label="Capture TikTok videos and photo posts" disabled>
+            </div>
+        </section>
+
+        <section class="collection" aria-label="Collection summary">
+            <div class="collection-heading"><h2>Your collection</h2><strong id="collection-total">0 records</strong></div>
+            <p id="download-total" class="hint">Loading download status…</p>
+            <p id="download-issues" class="notice" hidden></p>
+            <button id="export-csv" class="primary-button" disabled>Export CSV</button>
+            <p class="hint storage-note">Media and JSON save automatically to Downloads / tidaltales.</p>
+        </section>
+        <div id="status" class="notice" role="status" aria-live="polite" hidden></div>
+        <details class="manage">
+            <summary>Manage collection</summary>
+            <p class="hint">Clearing removes all collected metadata. Downloaded files stay on disk, and queued downloads continue.</p>
+            <button id="clear-data" class="danger-button">Clear metadata…</button>
+        </details>
+    </main>
+    <footer>
+        <span id="version"></span>
+        <nav aria-label="Resources"><a href="https://tidaltal.es" target="_blank" rel="noopener">Help</a><a href="https://github.com/digitalmethodsinitiative/zeeschuimer" target="_blank" rel="noopener">Zeeschuimer</a></nav>
     </footer>
-
     <script src="popup.js"></script>
 </body>
 </html>
