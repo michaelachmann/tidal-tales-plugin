@@ -112,7 +112,20 @@
                 result.push({ filename: `${base}.mp4`, type: "video", missing: true, error: "Video URL is missing from the captured metadata" });
             }
         }
+        // TikTok's CDN requires the browsing origin even when the signed URL
+        // and session cookies are valid. Use only the origin, never a user's
+        // page path/query, and keep it off metadata and other platforms.
+        if (platform === "tiktok") {
+            for (const task of result) {
+                if (task.url) task.headers = [{name: "Referer", value: "https://www.tiktok.com/"}];
+            }
+        }
         return result;
+    }
+
+    function isErrorDocument(item) {
+        const mime = String(item && item.mime || "").split(";")[0].trim().toLowerCase();
+        return ["text/html", "application/xhtml+xml", "application/json", "text/plain"].includes(mime);
     }
 
     function exactFilename(download, filename) {
@@ -123,7 +136,7 @@
 
     async function alreadyDownloaded(filename) {
         const matches = await browser.downloads.search({ query: [filename], state: "complete" });
-        return matches.some(item => exactFilename(item, filename) && item.exists === true && item.state === "complete");
+        return matches.some(item => exactFilename(item, filename) && item.exists === true && item.state === "complete" && !isErrorDocument(item));
     }
 
     function waitForDownload(id, timeoutMs) {
@@ -180,11 +193,21 @@
                 url: objectUrl || task.url,
                 filename: task.filename,
                 conflictAction: "overwrite",
-                saveAs: false
+                saveAs: false,
+                ...(task.headers ? {headers: task.headers} : {})
             });
             const terminal = await waitForDownload(id, root.TIDAL_DOWNLOAD_TIMEOUT_MS || 120000);
             if (terminal.status === "timeout" && browser.downloads.cancel) {
                 try { await browser.downloads.cancel(id); } catch (_) { /* already terminal */ }
+            }
+            if (terminal.status === "complete" && task.type !== "metadata") {
+                // A completed transfer can still be a CDN error document.
+                // Accept binary/unspecified MIME types used by legitimate CDNs.
+                const [item] = await browser.downloads.search({id});
+                if (isErrorDocument(item)) {
+                    terminal.status = "error";
+                    terminal.error = `Server returned ${item.mime} instead of media; revisit the post to retry`;
+                }
             }
             return Object.assign({ filename: task.filename, type: task.type }, terminal);
         } catch (error) {

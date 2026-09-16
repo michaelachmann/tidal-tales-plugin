@@ -239,3 +239,48 @@ test('missing Polaris video and image URLs are explicit missing files', () => {
         assert.ok(files[0].filename.includes('/alice/'));
     }
 });
+
+test('TikTok media includes its origin referrer; metadata and Instagram do not', async () => {
+    const calls = [];
+    const api = {
+        search: async query => query.id ? [{state:'complete', mime:'video/mp4'}] : [],
+        download: async options => { calls.push(options); return calls.length; }
+    };
+    const {storage} = load(api);
+    const signedURL = 'https://v16-webapp-prime.tiktok.com/video/test/?signature=preserve%2Bexact&expire=123';
+    await storage.save({source_platform:'tiktok.com', source_platform_url:'https://www.tiktok.com/@test?private=value', data:{
+        id:'test', author:{uniqueId:'test'}, video:{playAddr:signedURL,cover:'https://cdn.test/cover.jpg'}
+    }});
+    assert.equal(calls[0].headers,undefined);
+    assert.equal(calls[1].url,signedURL);
+    for (const call of calls.slice(1)) {
+        assert.deepEqual(JSON.parse(JSON.stringify(call.headers)),[{name:'Referer',value:'https://www.tiktok.com/'}]);
+    }
+    calls.length=0;
+    await storage.save({source_platform:'instagram.com',data:{id:'ig',display_url:'https://cdn.test/ig.jpg'}});
+    assert.ok(calls.every(call => call.headers === undefined));
+});
+
+test('completed HTML denial pages are errors and never reused as existing media', async () => {
+    const calls=[];
+    const api={
+        search: async query => query.id
+            ? [{state:'complete',mime:'text/html; charset=utf-8'}]
+            : [{state:'complete',exists:true,filename:'/Downloads/tidaltales/tiktok/test/denied.mp4',mime:'text/html'}],
+        download: async options => { calls.push(options); return calls.length; }
+    };
+    const {storage}=load(api);
+    const result=await storage.save({source_platform:'tiktok.com',data:{id:'denied',author:'test',video:{playAddr:'https://cdn.test/v.mp4'}}});
+    assert.equal(calls.length,2);
+    assert.equal(result.local_files[0].status,'complete');
+    assert.equal(result.local_files[1].status,'error');
+    assert.match(result.local_files[1].error,/instead of media/);
+    assert.equal(result.download_status,'partial');
+});
+
+test('binary MIME responses remain valid media downloads', async () => {
+    const api={search:async q=>q.id?[{state:'complete',mime:'application/octet-stream'}]:[],download:async()=>1};
+    const {storage}=load(api);
+    const result=await storage.save({source_platform:'tiktok.com',data:{id:'binary',video:{playAddr:'https://cdn.test/v'}}});
+    assert.equal(result.download_status,'complete');
+});

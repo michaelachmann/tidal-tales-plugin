@@ -27,6 +27,8 @@ Files are written below your Firefox Downloads directory:
 
 Capture follows data delivered during browsing, including items a platform loads in a batch; it is not proof that every item appeared on screen. Some previews omit video URLs or captions. Opening the individual post can provide richer metadata, which updates a matching capture. Media links can expire or downloads can fail; check the popup and CSV status rather than assuming every file saved. Downloads are queued to limit concurrent work. Keep Firefox running until they finish. Clearing the database keeps downloaded files and does not cancel queued downloads.
 
+TikTok media downloads include `Referer: https://www.tiktok.com/`, which its CDN may require even for a valid signed video URL. Media responses identified as HTML or other error documents are reported as failures rather than completed videos. If a download fails, revisit the post to collect a fresh URL and retry.
+
 The existing local database is retained. Captures are deduplicated within a navigation and platform; revisiting an item may create a new observation while reusing its media file. Raw JSON files refresh when the item is captured again. The Instagram collector labels each item as a Story, post, or Reel.
 
 ### Checks
