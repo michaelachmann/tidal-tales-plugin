@@ -9,7 +9,13 @@ The Tidal Tales Plugin is a modified version of the original [Zeeschuimer projec
 
 ## Usage
 
-[Download the latest version of the Tidal Tales Plugin](https://github.com/michaelachmann/tidal-tales-plugin/releases/latest) and install the extension using [Firefox](https://www.mozilla.org/en-GB/firefox/). Once the plugin is installed, browse Instagram Stories, posts or Reels, or TikTok videos. The media files and metadata are downloaded while browsing and stored in your downloads location. When done with the data collection, open the pop-up menu of our plugin and click *Export as CSV* to save a CSV file with all metadata in your download location. The CSV file includes file paths relative to your Downloads directory, download outcomes, platform, and content type. Only completed or previously verified downloads appear as saved media paths. Older records are marked as unverified.
+[Download the latest version of the Tidal Tales Plugin](https://github.com/michaelachmann/tidal-tales-plugin/releases/latest) and install the extension using [Firefox](https://www.mozilla.org/en-GB/firefox/):
+
+1. Under **Assets**, download the signed `tidal-tales-plugin-<version>.xpi` file. The source-code ZIP and TAR.GZ downloads are not installers.
+2. In Firefox, open `about:addons`, click the gear icon, and choose **Install Add-on From File…**.
+3. Select the downloaded `.xpi` file and confirm the installation and requested permissions. Installing a newer release with the same extension ID updates the existing installation; you do not need to remove it first.
+
+Once the plugin is installed, browse Instagram Stories, posts or Reels, or TikTok videos. The media files and metadata are downloaded while browsing and stored in your downloads location. When done with the data collection, open the pop-up menu of our plugin and click *Export as CSV* to save a CSV file with all metadata in your download location. The CSV file includes file paths relative to your Downloads directory, download outcomes, platform, and content type. Only completed or previously verified downloads appear as saved media paths. Older records are marked as unverified.
 
 
 ### Capture controls
