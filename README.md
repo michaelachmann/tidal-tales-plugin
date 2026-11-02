@@ -11,7 +11,7 @@ The Tidal Tales Plugin is a modified version of the original [Zeeschuimer projec
 
 [Download the latest version of the Tidal Tales Plugin](https://github.com/michaelachmann/tidal-tales-plugin/releases/latest) and install the extension using [Firefox](https://www.mozilla.org/en-GB/firefox/):
 
-1. Under **Assets**, download the signed `tidal-tales-plugin-<version>.xpi` file. The source-code ZIP and TAR.GZ downloads are not installers.
+1. Under **Assets**, download the signed `.xpi` file. The current release is **2.1.0**: [tidal-tales-plugin-2.1.0.xpi](https://github.com/michaelachmann/tidal-tales-plugin/releases/download/v2.1.0/tidal-tales-plugin-2.1.0.xpi). The source-code ZIP and TAR.GZ downloads are not installers.
 2. In Firefox, open `about:addons`, click the gear icon, and choose **Install Add-on From File…**.
 3. Select the downloaded `.xpi` file and confirm the installation and requested permissions. Installing a newer release with the same extension ID updates the existing installation; you do not need to remove it first.
 
@@ -24,11 +24,9 @@ The popup has independent switches for Instagram Stories, posts/carousels, Reels
 
 Each switch shows its collected record count, including records captured before it was turned off. The collection summary distinguishes completed downloads, pending records, and records needing attention. **Export CSV** always exports the whole collection, including disabled modules. **Manage collection → Clear metadata** removes database records after confirmation, while preserving downloaded files and capture preferences.
 
-## Development build (2.1.0)
+## Local files and capture limitations
 
-To try this checkout, open `about:debugging#/runtime/this-firefox` in Firefox, choose **Load Temporary Add-on**, and select this repository's `manifest.json`. Temporary installations are removed when Firefox restarts. The release download above remains the published version until a new signed release is made.
-
-The collectors reuse the response formats and filtering logic from the local Zeeschuimer checkout. Metadata and media stay on your computer; there is no 4CAT upload or other backend.
+Metadata and media stay on your computer; there is no 4CAT upload or other backend.
 
 Files are written below your Firefox Downloads directory:
 
@@ -42,6 +40,10 @@ Capture follows data delivered during browsing, including items a platform loads
 TikTok media downloads include `Referer: https://www.tiktok.com/`, which its CDN may require even for a valid signed video URL. Media responses identified as HTML or other error documents are reported as failures rather than completed videos. If a download fails, revisit the post to collect a fresh URL and retry.
 
 The existing local database is retained. Captures are deduplicated within a navigation and platform; revisiting an item may create a new observation while reusing its media file. Raw JSON files refresh when the item is captured again. The Instagram collector labels each item as a Story, post, or Reel.
+
+## Development
+
+To try this checkout, open `about:debugging#/runtime/this-firefox` in Firefox, choose **Load Temporary Add-on**, and select this repository's `manifest.json`. Temporary installations are removed when Firefox restarts. For regular use, install the signed release described above.
 
 ### Checks
 
